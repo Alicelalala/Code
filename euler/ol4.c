@@ -22,7 +22,7 @@ int check(int32_t n) {
 int main() {
     int32_t max;
     for (int i = 100; i < 1000; i++) {
-        for (int j = 100; j < 1000; j++) {
+        for (int j = i; j < 1000; j++) {
             if (check(i * j) && (i * j) > max) {
                 max = i * j;
             }
