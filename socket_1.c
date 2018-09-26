@@ -25,6 +25,8 @@
 #include <stdarg.h>
 
 #define MAX_SIZE 2000
+#define FILE_SIZE 500
+#define MAX_FILE 512
 
 int main(int argc, char *argv[]) {
     int sock_client;
@@ -43,9 +45,31 @@ int main(int argc, char *argv[]) {
         perror("Connect");
         return -1;
     }
-    while (1) {
+    while(1) {
+        char file_name[FILE_SIZE];  
+        memset( file_name,0, sizeof(file_name)   );
+        printf("Please Input File Name On Server:   "); 
+        scanf("%s", file_name);        
+
+        FILE *fp;
+        fp = fopen(file_name, "r");
+        memset(buffer, 0, sizeof(buffer));
+        while(!feof(fp) ) {
+            fread(buffer, 5, 1, fp);
+            //printf("%s", buffer);
+            send(sock_client, buffer, strlen(buffer), 0);
+            memset(buffer, 0, sizeof(buffer));
+            
+        }
+        fclose(fp);
+    }
+
+    /* while (1) {
         scanf("%[^\n]s", buffer);
         getchar();
         send(sock_client, buffer, strlen(buffer), 0);
-    }
+    }*/
+
+    close(sock_client);
+    return 0;
 }
