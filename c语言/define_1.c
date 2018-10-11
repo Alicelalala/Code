@@ -19,7 +19,9 @@ int main() {
     P(MAX(2, MAX(3, 4)));
     P(MAX(2, 3 > 4 ? 3 : 4));
     int a = 7;
-    P(MAX(a++, 6));
+    P(MAX((a)++, 3));
     printf("a = %d\n", a);
+    int b = 7;
+    printf("%d\n", b++ > 5 ? b++ : 5);
     return 0;
 }

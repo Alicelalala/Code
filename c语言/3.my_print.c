@@ -60,7 +60,7 @@ int main() {
     my_printf("hello world\n");
     my_printf("n = %d\n", n);
     my_printf("n = %d\n", 12000);
-    my_printf("n = %d\n", -567);
+    my_printf("n = %d, = %d\n", -567, 345);
     my_printf("n = %d\n", INT32_MIN);
     my_printf("n = %d\n", INT32_MAX);
     return 0;
