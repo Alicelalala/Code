@@ -9,7 +9,7 @@
 #define _LS_HEADER_H
 
 #include <stdio.h>
-#include <dirent.h>  //for DIR, dirent 
+#include <dirent.h> 
 #include <string.h>
 #include <sys/ioctl.h>
 #include <unistd.h>

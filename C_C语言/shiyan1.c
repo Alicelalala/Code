@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <time.h>
 #define MAX_F 10000000
 #define MAX_N 10000000
@@ -11,7 +12,7 @@
     ret; \
 }) 
 
-int buffer_qsort[MAX_N];
+int buffer_qsort[MAX_N];   //
 int buffer_line[MAX_N];
 
 void file_num () {
@@ -90,7 +91,7 @@ int partition(int a[],int p,int r, int x)//快排的部分
     return i;
 }
 
-int select (int a[], int p, int r, int k) {
+int xian_xing_select (int a[], int p, int r, int k) {
 	if ((r - p) < 9)  {
 		quick_sort(a, p, r);
 		return a[p + k - 1];
@@ -103,11 +104,11 @@ int select (int a[], int p, int r, int k) {
 		quick_sort(a, s, t);
 		swap(&a[p + i], &a[s + 4]);
 	}
-	int x = select (a, p, p + (r - p - 8) / 9, (r - p + 10) / 10);
+	int x = xian_xing_select (a, p, p + (r - p - 8) / 9, (r - p + 10) / 10);
 	i = partition(a, p, r, x),
 	j = i - p + 1;
-	if (k <= j) return select(a, p, i, k);
-	else return select(a, i + 1, r, k - j);
+	if (k <= j) return xian_xing_select(a, p, i, k);
+	else return xian_xing_select(a, i + 1, r, k - j);
 }
 
 int main() {
@@ -131,7 +132,7 @@ int main() {
 	fclose(fr);
 		
 	int k;
-	TEST_TIME(k = select(buffer_line, 0, ans - 1, ans));
+	TEST_TIME(k = xian_xing_select(buffer_line, 0, ans - 1, ans));
 	//printf("排在第 %d 位的数为: %d\n", ans, k);
     printf("the %dth number is: %d\n", ans, k);
     
