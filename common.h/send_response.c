@@ -16,7 +16,7 @@
 */
 
 int send_response (int sockfd, int req) {
-    if ((int num = send(sockfd, &req, 1, 0)) < 0) {
+    if ((int nbytes = send(sockfd, &req, 1, 0)) < 0) {
         perror("send error!");
         exit(1);
     }

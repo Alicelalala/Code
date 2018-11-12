@@ -11,11 +11,16 @@
  * s:接收套接字描述符
  * buf:指明一个缓冲区，该缓冲区用来存放recv函数接收到的数据
  * len：buf的长度
- * 如果recv函数copy时出错，返回SOCKET_ERROR;如果recv函数在等待协议接收数据时网络中断了，返回0；正常返回copy的字节数
+ * 如果recv函数copy时出错，返回SOCKET_ERROR;如果recv函数在等待协议接收数据时网络中断了，返回0；正常返回copy的字节数::wq
  */
-int recv_response (int sockfd, int req) {
-    if ((int num = recv(sockfd, &req, 1, 0)) < 0) {
+int recv_response (int sockfd) {
+    int req, nbytes;
+    nbytes = recv(sockfd, &req, 1, 0)
+    if (nbytes < 0){
         perror("recv error!");
+        exit(1);
+    } else if (nbytes == 0) {
+        perror("SOCKET error!");
         exit(1);
     }
     return req;

@@ -40,7 +40,7 @@ int check_size (char *filename, int size, char *dir) {
     lt = localtime(&_time);
     sprintf(command2, "cp -a %s %s/%s_%d%d%d%d", filename, dir, basename, lt->tm_year+1900, lt->tm_mon+1, lt->tm_mday, lt->tm_hour);
     system(command2);
-    plose(fpr);
+    pclose(fpr);
     return 0;
 }
 
