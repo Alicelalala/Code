@@ -9,7 +9,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-int get_conf_value (char *pathname, char *key_name, char *value) {
+int get_conf_value (const char *pathname, const char *key_name, char *value) {
     FILE *fp = NULL;
     char *line = NULL, *substr = NULL;
     size_t len = 0, tmplen = 0;
@@ -53,10 +53,10 @@ int get_conf_value (char *pathname, char *key_name, char *value) {
     fclose(fp);
     return 0;
 }
-
+/*
 int main() {
     char pathname[100], key_name[100], value[100];
     scanf("%s%s", pathname, key_name);
     get_conf_value(pathname, key_name, value);
     printf("%s", value);
-}
+}*/

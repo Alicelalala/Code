@@ -31,7 +31,7 @@ int *twoSum(int *nums, int numsSize, int target) {
 		if (nums[p] + nums[q] < target) ++p;
 		else --q;
 	}
-	int *ret = (int *)malloc(sizeof(int) * z);
+	int *ret = (int *)malloc(sizeof(int) * 2);
 	int ans = 2;
 	for (int i = 0; i < numsSize && ans; i++) {
 		if (temp_num[i] == num[p] ||temp_num[i] == nums[q]) {
@@ -44,7 +44,7 @@ int *twoSum(int *nums, int numsSize, int target) {
 }
 
 typedef struct Data {
-	int val, int;
+	int val, int id;
 } Data;
 
 typedef struct HashTable {
@@ -74,9 +74,8 @@ int insert (Hashtable *h, int val, int ind) {
 		times++;
 		pos %= h->size;
 	}
-	h->data[ps].val = val;
-	h->data[pos].id = id;
-	
+	h->data[pos].val = val;
+	h->data[pos].id = ind;
 	return ;
 }
 
@@ -101,7 +100,7 @@ void clear (HahTable *h) {
 
 int *twoSum (int *nums, int numssize,, int target)  {
 	HashTable *h = init(numszSize);
-	for (int i = 0; i < nums size; i++) {
+	for (int i = 0; i < numsSize; i++) {
 		Data *result = search(h, target - num[i]);
 		ret[0] = result->ind
 		ret[1] = i;
@@ -115,7 +114,7 @@ int *twoSum (int *nums, int numssize,, int target)  {
 // 
 //·½·¨Ò» 
 int lengthOf (char *s) {
-	int pos[256], len = 0;
+	int pos[256], len = 0, ans = 0;
 	memset(pos, -1, sizeof(pos));
 	for (int i = 0; s[i]; i++) {
 		len += 1;
@@ -143,8 +142,8 @@ int check (char *s, int len) {
 
 int lengthOf (char  *s) {
 	int head = 0, tail = strlen(s), mid;
-	while (head < tail) {
-		mid (head + tail + 1) >> 1;
+	while (head < tail) {0
+		mid = (head + tail + 1) >> 1;
 		if (check(s, mid) == 1) head = mid;
 		else tail = mid - 1;
 	}
