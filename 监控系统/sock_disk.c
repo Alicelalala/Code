@@ -85,15 +85,24 @@ int main(int argc, char *argv[]) {
         close(sock_client);
 }*/
     while (1) {
-        FILE *fdisk = popen("~/shell/disk.sh", "r");
-        char buf[MAX_SIZE];
-        char str[5];
-        strcpy(str, "102");
-        send(sock_client, str, strlen(str), 0);
-        fgets(buf, sizeof(buf), fdisk);
-        send(sock_client, buf, strlen(buf), 0);
-        fclose(fdisk);
-        sleep(5);
+        #define MAX_N 3
+        char *buffer = (char *)malloc(sizeof(char) * MAX_SIZE);
+        char *bit = (char *)malloc(sizeof(char) * 5);
+
+        FILE *fp = popen("~/shell/disk.sh", "r");
+        strcpy(bit, "100");
+
+        send(sockfd, bit, strlen(bit), 0);
+        //fgets(buffer, sizeof(buffer), fp);
+        //send(sockfd, buffer, strlen(buffer), 0);
+        while (!feof(fp)) {
+            fread(buffer, MAX_SIZE, 1, fp);
+            printf("%s", buffer);
+            send(sockfd, buffer, strlen(buffer), 0);
+            memset(buffer, 0, sizeof(buffer));
+        }
+        pclose(fp);
+        sleep(10);
     }
     /*
     while (1) {

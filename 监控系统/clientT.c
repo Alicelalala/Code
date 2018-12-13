@@ -7,13 +7,6 @@
 
 #include "head.h"
 #include "common.c"
-#define INS 5
-
-struct mypara {   //每个线程的信息
-    const char *s;
-    int num;
-};
-
 
 int connect_sockfd (int port, char *host) {
     int sockfd;
@@ -57,26 +50,25 @@ int create_socket (int port) {
     printf("listening...\n");
     return sockfd;
 }
-
 int get_message_filename (int bit, char *filename) {
             switch (bit) {
                 case 100: {
-                    sprintf(filename, "cat /home/caohaiyan/shell/cpu.log");
+                    sprintf(filename, "./cpu.sh");
                 } break;
                 case 101: {
-                    sprintf(filename, "cat /home/caohaiyan/shell/mem.log");
+                    sprintf(filename, "./mem.sh 0");
                 } break;
                 case 102: {
-                    sprintf(filename, "cat /home/caohaiyan/shell/disk.log");
+                    sprintf(filename, "./disk.sh");
                 } break;
                 case 103: {
-                    sprintf(filename, "cat /home/caohaiyan/shell/sysinfo.log");
+                    sprintf(filename, "./sysinfo.sh");
                 } break;
                 case 104: {
-                    sprintf(filename, "cat /home/caohaiyan/shell/user.log");
+                    sprintf(filename, "./user.sh");
                 } break;
                 case 105: {
-                    sprintf(filename, "cat /home/caohaiyan/shell/proc.log");
+                    sprintf(filename, "./proc.sh");
                 } break;
                 default : {
                     printf("bit error\n");
@@ -86,90 +78,18 @@ int get_message_filename (int bit, char *filename) {
     return 1;
 }
 
-int getfilename (char **bashFileName, int id) {
-
-    int n = 0, stime;
-    switch (id) {
-        case 0: {
-            sprintf(bashFileName[n++], "bash ~/shell/cpu.sh");
-            sprintf(bashFileName[n++], "bash ~/shell/mem.sh");
-            stime = 5;
-        } break;
-        case 1: {
-            sprintf(bashFileName[n++], "bash ~/shell/disk.sh");
-            sprintf(bashFileName[n++], "bash ~/shell/sysinfo.sh");
-            sprintf(bashFileName[n++], "bash ~/shell/user.sh");
-            stime = 60;
-        } break;
-        case 2: {
-            sprintf(bashFileName[n++], "bash ~/shell/proc.sh");
-            stime = 30;
-        } break;
-        default : {
-            printf("para->num error\n");
-            return 0;
-        }
-    }
-    return stime;
-}
-/*
-void *func (void *argv) {
-    struct mypara *para;
-    para = (struct mypara *) argv;
-    char **bashFileName = (char **)malloc(sizeof(char *) * (INS + 1));
-    for (int i = 0; i < 3; i++) {
-        bashFileName[i] = (char *)malloc(sizeof(char) * 30);
-    }
-    //sprintf(bashFileName[0], "hjkkkkk");
-    printf("para->num %d\n", para->num);
-    int n = 0, stime;
-    stime = getfilename(bashFileName, para->num);
-    switch(para->num) {
-        case 0: n = 2; break;
-        case 1: n = 3; break;
-        case 2: n = 1; break;
-    }
-
-    FILE *fp;
-    #define MAX_N 200
-    char *buffer = (char *)malloc(sizeof(char) * 200);
-    while (1) {
-        printf("para ====== %d  \n", para->num);
-        for (int i = 0; i < n; i++) {
-            printf("%s\n", bashFileName[i]);
-            fp = popen(bashFileName[i], "r");
-            pclose(fp);
-        }
-        sleep(stime);
-    }
-    return NULL;
-}
-*/
 int main(int argc, char *argv[]) {
-    //pthread_t t[INS + 1];
-    //struct mypara para[INS + 1];
-
     int port = atoi(argv[2]);
     char *host = argv[1];
     int sockfd, sock_listen;
     sockfd = connect_sockfd(port, host);
-
     if (sockfd < 0) {
         printf("connect!!\n");
         close(sockfd);
         exit(0);
     }
     close(sockfd);
-/*
-    for (int i = 0; i < 3; i++) {
-        para[i].s = "Monitoring data";
-        para[i].num = i;
-        if (pthread_create(&t[i], NULL, func, (void *)&para[i]) == -1) {
-            printf("error\n");
-            exit(1);
-        }
-    }
-  */  
+    
     port = 9999;
     sock_listen = create_socket(port);
     if (sock_listen < 0) exit(0);
@@ -189,7 +109,7 @@ int main(int argc, char *argv[]) {
             break;
         }
         FILE *fp;
-        char *filename = (char *)malloc(sizeof(char) * 100);
+        char *filename = (char *)malloc(sizeof(char) * 20);
 
         send(sockfd, &bit, 4, 0);
         while ((a = recv(sockfd, &bit, 4, 0)) > 0) {
@@ -204,7 +124,7 @@ int main(int argc, char *argv[]) {
             memset(buffer, 0, sizeof(buffer));
             fp = popen(filename, "r");
             while (!feof(fp)) {
-                fread(buffer, 4, 1, fp);
+                fread(buffer, MAX_N, 1, fp);
                 printf("%s", buffer);
                 send(sockfd_data, buffer, strlen(buffer), 0);
                 memset(buffer, 0, sizeof(buffer));
@@ -219,9 +139,6 @@ int main(int argc, char *argv[]) {
         close(sockfd);
     }
     close(sock_listen);
-    //pthread_join(t[0], NULL);
-    //pthread_join(t[1], NULL);
-    //pthread_join(t[2], NULL);
     return 0;
 }
 

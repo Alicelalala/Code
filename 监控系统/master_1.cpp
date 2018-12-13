@@ -16,7 +16,6 @@ int queue[INS + 1] = {0}; //初始化队列
 LinkedList linkedlist[INS + 5]; 
 FILE *log1[INS + 1]; 
 int flag[INS + 1] = {1};
-static pthread_mutex_t mutex_add = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t mutex[INS + 1] = PTHREAD_MUTEX_INITIALIZER;
 
 void *func(void *);  //函数声明
@@ -148,14 +147,15 @@ int find_min(int N, int *arr) {
     return ans;
 }
 
-int connect_socket (struct sockaddr_in dest_addr) {
-    int port = 9999;
+int connect_socket (int port, struct sockaddr_in dest_addr) {
     int sockfd;
     if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         perror("socket() error!\n");
         return -1;
     }
     dest_addr.sin_port = htons(port);
+    int flags;
+
     if (connect(sockfd, (struct sockaddr *)&dest_addr, sizeof(dest_addr)) < 0) {
         perror("connect() error\n");
         return -1;
@@ -191,6 +191,117 @@ int create_socket (int port) {
     return sockfd;
 }
 
+int get_filename (int bit, int para_num, char *filename) {
+    switch (bit) {
+        case 100: {
+            sprintf(filename, "./cpuLog/%d.cpu.log", para_num);
+        }break;
+        case 101: {
+            sprintf(filename, "./diskLog/%d.mem.log", para_num);
+        }break;
+        case 102: {
+            sprintf(filename, "./memLog/%d.disk.log", para_num);
+        }break;
+        case 103: {
+            sprintf(filename, "./sysLog/%d.sysinfo.log", para_num);
+        }break;
+        case 104: {
+            sprintf(filename, "./userLog/%d.user.log", para_num);
+        }break;
+        case 105: {
+            sprintf(filename, "./procLog/%d.proc.log", para_num);
+        }break;
+        default : {
+            printf("bit error!\n");
+            break;
+        }
+    }
+    return 0;
+}
+
+int write_message (char *filename, struct sockaddr_in dest_addr) {
+    int sockfd_data;
+    char *client_data_port = (char *)malloc(sizeof(char) * 5);
+    get_conf_value("./piheadlthd.conf", "client_data_port", client_data_port);
+    int port = atoi(client_data_port);
+
+    sockfd_data = connect_socket(port, dest_addr);
+    if (sockfd_data < 0) {
+        printf("IP %s write_message connect error\n", inet_ntoa(dest_addr.sin_addr));
+        close(sockfd_data);
+        exit(0);
+    }
+    #define MAX_N 1024
+    int a;
+    char *buffer = (char *)malloc(sizeof(char) * MAX_N);
+    memset(buffer, 0, sizeof(buffer));
+    FILE *fp = fopen(filename, "a+");
+    while ((a = recv(sockfd_data, buffer, MAX_N, 0)) > 0) {
+        fwrite(buffer, a, 1, fp);
+        memset(buffer, 0, sizeof(buffer));
+    }
+    fclose(fp);
+    if (a == 0) {
+        printf("IP%s closed\n", inet_ntoa(dest_addr.sin_addr));
+    } else if (a < 0) {
+        perror("recv error\n");
+    }
+    close(sockfd_data);
+    return 0;
+}
+
+
+void *func(void *argv) {
+    struct mypara *para;
+    para = (struct mypara *) argv;
+    //printf("%s %d\n", para->s, para->num);
+    int sockfd;
+    //struct sockaddr_in dest_addr;
+    
+    if (queue[para->num] == 0) return NULL;
+
+    pthread_mutex_lock(&mutex[para->num]);
+    int count = 0;
+    Node *p = linkedlist[para->num];
+    Node *q = linkedlist[para->num];
+    printf("queue[%d] = %d q = %s\n", para->num, queue[para->num], inet_ntoa(q->addr.sin_addr));
+
+    //长连接
+    char *client_long_port = (char *)malloc(sizeof(char) * 5);
+    get_conf_value("./piheadlthd.conf", "client_long_port", client_long_port);
+    int port = atoi(client_long_port);
+    while (q) {
+        sockfd = connect_socket(port, q->addr);
+        if (sockfd < 0) {
+            printf("delete_node queue %d num :%d %s\n", para->num, count, inet_ntoa(q->addr.sin_addr));
+            q = q->next;
+            p = delete_node(p, count);
+            queue[para->num]--;
+            close(sockfd);
+            continue;
+        }
+        count++;
+        printf("connect%s\n", inet_ntoa(q->addr.sin_addr));
+        int len, bit;
+        while ((len = recv(sockfd, &bit, 4, 0)) > 0) {
+            printf("bit == %d\n", bit);
+            send(sockfd, &bit, 4, 0); //返回确认标识符
+            char *filename = (char *)malloc(sizeof(char) * 20);
+            get_filename(bit, para->num, filename);
+            sleep(5);
+            //数据连接
+            write_message(filename, q->addr);
+        }
+        q = q->next;
+        close(sockfd);
+    }
+
+    linkedlist[para->num] = p;
+    output(linkedlist[para->num], para->num);
+    pthread_mutex_unlock(&mutex[para->num]);
+    return NULL;
+}
+
 int main() {
     pthread_t t[INS + 1];
     struct mypara para[INS + 1];
@@ -214,14 +325,12 @@ int main() {
     }
 
     while (1) {
-        pthread_mutex_lock(&mutex_add);
         struct sockaddr_in client_addr;
         socklen_t len = sizeof(client_addr);
         if ((sockfd = accept(server_listen, (struct sockaddr *)&client_addr, &len)) < 0) {
             perror("accept error!\n");
             break;
         }
-        
         
         int flag = 0, min;
 
@@ -231,6 +340,8 @@ int main() {
         p->next = NULL;
     
         for (int i = 0; i < INS; i++) {
+            if (queue[i] == 0) continue;
+            printf("i = %d\n", i);
             if (check_weight(linkedlist[i], p)) {
                 flag = 1;
                 min = i;
@@ -240,26 +351,24 @@ int main() {
         
         if (flag == 0) {
             min = find_min(INS, queue);
+            pthread_mutex_lock(&mutex[min]);
             ret = insert(linkedlist[min], p, queue[min]);
-            printf("insert%d = %d %s\n", queue[min], min, inet_ntoa(p->addr.sin_addr));
+            printf("insert%d = %d %s\n", min, queue[min], inet_ntoa(p->addr.sin_addr));
             queue[min]++;
             linkedlist[min] = ret.next;      
+            pthread_mutex_unlock(&mutex[min]);
         }
-        //output(linkedlist[min], min);
 
         if (pthread_kill(t[min], 0) == ESRCH) {
             para[min].s = "Hello world!";
             para[min].num = min;//用来标识线程
-            sleep(5);
             
             if (pthread_create(&t[min],NULL, func, (void *)&para[min]) == -1) {
-                printf("error\n");
+                printf("pthread_create() error\n");
                 exit(1);
             }
-            //printf("重建线程%d\n", min);
         }
 
-        pthread_mutex_unlock(&mutex_add);
         close(sockfd);
     }
     //需要等待子进程结束，否则主线程会先结束，整个进程结束
@@ -276,39 +385,4 @@ int main() {
     printf("\n");
     close(server_listen); 
     return 0;
-}
-
-void *func(void *argv) {
-    struct mypara *para;
-    para = (struct mypara *) argv;
-    printf("%s %d\n", para->s, para->num);
-    int sockfd;
-    struct sockaddr_in dest_addr;
-    
-    if (queue[para->num] == 0) return NULL;
-
-    pthread_mutex_lock(&mutex[para->num]);
-    int count = 0;
-    Node *p = linkedlist[para->num];
-    Node *q = linkedlist[para->num];
-    printf("queue[%d] = %d q = %s\n", para->num, queue[para->num], inet_ntoa(q->addr.sin_addr));
-    while (q) {
-        sockfd = connect_socket(q->addr);
-        if (sockfd < 0) {
-            printf("delete_node queue %d num :%d %s\n", para->num, count, inet_ntoa(q->addr.sin_addr));
-            q = q->next;
-            p = delete_node(p, count);
-            queue[para->num]--;
-        } else {
-            count++;
-            printf("connect%s\n", inet_ntoa(q->addr.sin_addr));
-            q = q->next;
-        }
-        close(sockfd);
-    }
-
-    linkedlist[para->num] = p;
-    output(linkedlist[para->num], para->num);
-    pthread_mutex_unlock(&mutex[para->num]);
-    return NULL;
 }
