@@ -31,8 +31,8 @@ int recv_response (int sockfd) {
         perror("recv error!");
         exit(1);
     } else if (nbytes == 0) {
-        perror("SOCKET error!");
-        exit(1);
+        printf("socket closed!\n");
+        return 0;
     }
     return req;
 }
@@ -47,19 +47,18 @@ int recv_response (int sockfd) {
 
 int send_response (int sockfd, int req) {
     int nbytes;
-    if ((nbytes = send(sockfd, &req, 1, 0)) < 0) {
+    if ((nbytes = send(sockfd, &req, 1, 0)) == -1) {
         perror("send error!");
         exit(1);
     }
     return 0;
 }
 
-int get_conf_value (char *pathname, char *key_name, char *value) {
+int get_conf_value (const char *pathname, const char *key_name, char *value) {
     FILE *fp = NULL;
     char *line = NULL, *substr = NULL;
     size_t len = 0, tmplen = 0;
     ssize_t read;
-
     if (key_name == NULL || value == NULL) {
         printf("paramer is invaild!\n");
         exit(-1);
@@ -69,7 +68,6 @@ int get_conf_value (char *pathname, char *key_name, char *value) {
         printf("Open config, file, error!\n");
         exit(-1);
     }
-
     while ((read = getline(&line, &len, fp)) != -1) {
         substr = strstr(line, key_name);
         if (substr == NULL) 
@@ -93,9 +91,54 @@ int get_conf_value (char *pathname, char *key_name, char *value) {
         fclose(fp);
         exit(-1);
     }
-    printf("%s=%s\n", key_name, value);
+    //printf("%s=%s\n", key_name, value);
     free(line);
     fclose(fp);
     return 0;
 }
 
+int connect_socket (int port, char *host) {
+    int sockfd;
+    struct sockaddr_in dest_addr;
+    if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+        perror("socket() error\n");
+        return -1;
+    }
+    //printf("connect ....%s\n", host);
+    dest_addr.sin_family = AF_INET;
+    dest_addr.sin_port = htons(port);
+    dest_addr.sin_addr.s_addr = inet_addr(host);
+    if (connect(sockfd, (struct sockaddr *)&dest_addr, sizeof(dest_addr))) {
+        //printf("%s\n", inet_ntoa(dest_addr.sin_addr));
+        perror("connect() error");
+        return -1;
+    }
+    return sockfd;
+}
+
+int bind_socket (int port) {
+    int sockfd;
+    struct sockaddr_in sock_addr;
+    struct linger m_sLinger;
+    if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+        perror("socket() error!\n");
+        return -1;
+    }
+    sock_addr.sin_family = AF_INET;
+    sock_addr.sin_port = htons(port);
+    sock_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+
+    setsockopt(sockfd, SOL_SOCKET, SO_LINGER, (const char *)&m_sLinger, sizeof(struct linger));
+    if ((bind(sockfd, (struct sockaddr *)&sock_addr, sizeof(struct sockaddr))) < 0) {
+        close(sockfd);
+        perror("bind() error!\n");
+        return -1;
+    }
+    if (listen(sockfd, 20) < 0) {
+        close(sockfd);
+        perror("listen() error!\n");
+        return -1;
+    }
+    printf("listening...\n");
+    return sockfd;
+}

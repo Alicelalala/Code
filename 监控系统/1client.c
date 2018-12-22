@@ -245,11 +245,25 @@ int main(int argc, char *argv[]) {
         char *filename = (char *)malloc(sizeof(char) * 100);
         char *command = (char *)malloc(sizeof(char) * 100);
 
-        send(sockfd, &bit, 4, 0);
+        //send(sockfd, &bit, 4, 0);
     
         while ((a = recv(sockfd, &bit, 4, 0)) > 0) {
-            fp = NULL;
             int id = get_message_filename(bit, filename);
+            pthread_mutex_lock(&mutex[id]);
+            FILE *fp = fopen(filename, "r");
+            if (fp == NULL) {
+                printf("%s can not read\n", filename);
+                pthread_mutex_unlock(&mutex[id]);
+                bit = 404;
+                send(sockfd, &bit, 4, 0);
+                printf("send 404\n");
+                //break;
+                continue;
+            }
+            fclose(fp);
+            fp = NULL;
+            send_response(sockfd, bit);
+            printf("send %d open %s\n", bit, filename);
             if ((sockfd_data = accept(sock_data_listen, (struct sockaddr *)&master_addr, &len)) < 0) {
                 perror("accept() error!\n");
                 break;
@@ -257,7 +271,7 @@ int main(int argc, char *argv[]) {
             char *buffer = (char *)malloc(sizeof(char) * MAX_N);
             memset(buffer, 0, sizeof(buffer));
             printf("id = %d\n", id);
-            pthread_mutex_lock(&mutex[id]);
+            //pthread_mutex_lock(&mutex[id]);
             sprintf(command, "cat %s", filename);
             fp = popen(command, "r");
             while (!feof(fp)) {
@@ -276,9 +290,6 @@ int main(int argc, char *argv[]) {
             }
             pthread_mutex_unlock(&mutex[id]);
             close(sockfd_data);
-            bit += 1;
-            if (bit == 106) break;
-            send(sockfd, &bit, 4, 0); //发送文件标识符
         }
         close(sockfd);
     }

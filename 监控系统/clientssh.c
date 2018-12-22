@@ -8,7 +8,6 @@
 #include "head.h"
 #include "common.c"
 #define INS 3
-#define MAX_N 1024
 
 static pthread_mutex_t mutex[INS + 1] = PTHREAD_MUTEX_INITIALIZER;
 
@@ -102,7 +101,7 @@ int getfilename (char **bashFileName, int id) {
         case 0: {
             sprintf(bashFileName[n++], "bash ~/shell/cpu.sh");
             sprintf(bashFileName[n++], "bash ~/shell/mem.sh");
-            stime = 1;
+            stime = 5;
         } break;
         case 1: {
             sprintf(bashFileName[n++], "bash ~/shell/disk.sh");
@@ -178,6 +177,7 @@ void *func (void *argv) {
     }
 
     FILE *fp;
+    #define MAX_N 200
     char *buffer = (char *)malloc(sizeof(char) * 200);
     while (1) {
         //printf("para ====== %d  \n", para->num);
@@ -247,6 +247,7 @@ int main(int argc, char *argv[]) {
 
         send(sockfd, &bit, 4, 0);
     
+    printf("=========\n");
         while ((a = recv(sockfd, &bit, 4, 0)) > 0) {
             fp = NULL;
             int id = get_message_filename(bit, filename);
@@ -254,6 +255,7 @@ int main(int argc, char *argv[]) {
                 perror("accept() error!\n");
                 break;
             }
+            #define MAX_N 200
             char *buffer = (char *)malloc(sizeof(char) * MAX_N);
             memset(buffer, 0, sizeof(buffer));
             printf("id = %d\n", id);
@@ -262,12 +264,8 @@ int main(int argc, char *argv[]) {
             fp = popen(command, "r");
             while (!feof(fp)) {
                 fread(buffer, 4, 1, fp);
-                //printf("%s", buffer);
-                int len = send(sockfd_data, buffer, strlen(buffer), 0);
-                if (len == -1) {
-                    perror("send error\n");
-                    exit(1);
-                }
+                printf("%s", buffer);
+                send(sockfd_data, buffer, strlen(buffer), 0);
                 memset(buffer, 0, sizeof(buffer));
             }
             pclose(fp);

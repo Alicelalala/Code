@@ -35,8 +35,9 @@ int main() {
     char *format = (char *)malloc(1024);
     char *host = (char *)malloc(1024);
     scanf("%s%s", filename, format);
-    strcpy(host, "error success!");
+    strcpy(host, "192.168.1.137");
     write_pi_log(filename, format, host);
+    printf("%s", format);
     free(filename);
     free(format);
     free(host);
