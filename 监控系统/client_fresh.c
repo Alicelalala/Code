@@ -16,7 +16,7 @@ static pthread_mutex_t mutex[INS + 1];
 static pthread_mutex_t alt_mut;
 
 struct mypara {   //每个线程的信息
-    const char *s;
+    char *s;
     int num;
 };
 
@@ -73,7 +73,7 @@ void *alt_func (void *argv) {
     char filename[PATH_N], command[PATH_N];
     strcpy(filename, "/home/caohaiyan/shell/warning.log");
     strcpy(command, "bash ~/shell/alter.sh");
-    char buffer[MAX_N];
+    char *buffer = (char *)malloc(sizeof(char) * MAX_N);
     while (1) {
         FILE *fp = popen(command, "r");
         pclose(fp);
@@ -82,19 +82,21 @@ void *alt_func (void *argv) {
             sleep(5);
             continue;
         }
+        fclose(fr);
         sockfd = connect_socket(port, host);
         if (sockfd < 0) {
             printf("connect!!\n");
             close(sockfd);
             exit(0);
         }
-        while (!feof(fr)) {
-            fread(buffer, 4, 1, fr);
+        FILE *fd = fopen(filename, "r");
+        while (!feof(fd)) {
+            fread(buffer, 4, 1, fd);
             printf("%s", buffer);
             send(sockfd, buffer, strlen(buffer), 0);
             memset(buffer, 0, sizeof(buffer));
         }
-        fclose(fr);
+        fclose(fd);
         if (remove(filename) != 0) {
             perror("remove error\n");
         }
@@ -114,7 +116,6 @@ void *func (void *argv) {
     char *buffer = (char *)malloc(sizeof(char) * MAX_N);
     while (1) {
         pthread_mutex_lock(&mutex[para->num]);
-        //printf("%s\n", command);
         FILE *fp = popen(command, "r");
         pclose(fp);
         pthread_mutex_unlock(&mutex[para->num]);
@@ -124,10 +125,30 @@ void *func (void *argv) {
     return NULL;
 }
 
+void *heart_func (void *argv) {
+    struct mypara *addr;
+    addr = (struct mypara *) argv;
+    int sockfd;
+    while (1) {
+        sockfd = connect_socket(addr->num, addr->s);
+        if (sockfd < 0) {
+            //perror("connect error");
+            break;
+            //close(sockfd);
+            //exit(0);
+        }
+        close(sockfd);
+        sleep(20);
+    }
+    return NULL;
+}
+
 int main(int argc, char *argv[]) {
     pthread_t t[INS + 1];
     pthread_t alt_t;
+    pthread_t heart_t;
     struct mypara para[INS + 1];
+    struct mypara heart_para;
     init_pthread();
     if (pthread_create(&alt_t, NULL, alt_func, NULL) == -1) {
         printf("error\n");
@@ -135,18 +156,24 @@ int main(int argc, char *argv[]) {
     }
     int port = atoi(argv[2]);
     char *host = argv[1];
-    int sockfd, sock_listen;
-    printf("%s\n", host);
-    sockfd = connect_socket(port, host);
-    if (sockfd < 0) {
-        perror("connect error");
-        close(sockfd);
-        exit(0);
+    heart_para.s = host;
+    heart_para.num = port;
+    if (pthread_create(&heart_t, NULL, heart_func, (void *)&heart_para) == -1) {
+        printf("error\n");
+        exit(1);
     }
-    close(sockfd);
-
+    int sockfd, sock_listen;
+    //sockfd = connect_socket(port, host);
+    //if (sockfd < 0) {
+    //    perror("connect error");
+    //    close(sockfd);
+    //    exit(0);
+    //}
+    //close(sockfd);
+    char initstr[PATH_N];
+    sprintf(initstr, "Hello World!");
     for (int i = 0; i < INS; i++) {
-        para[i].s = "Monitoring data";
+        para[i].s = initstr;
         para[i].num = i;
         if (pthread_create(&t[i], NULL, func, (void *)&para[i]) == -1) {
             printf("error\n");
@@ -200,7 +227,7 @@ int main(int argc, char *argv[]) {
             FILE *fr = popen(command, "r");
             while (!feof(fr)) {
                 fread(buffer, 4, 1, fr);
-                printf("%s", buffer);
+                //printf("%s", buffer);
                 int len = send(sockfd_data, buffer, strlen(buffer), 0);
                 if (len == -1) {
                     perror("send error\n");

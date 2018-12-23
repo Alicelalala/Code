@@ -14,6 +14,11 @@
 #define MAX_N 1024
 #define MAX_P 10
 
+#ifdef DEBUG
+#define DEBUGLL(...) printf(__VA_ARGS__)
+#else
+#define DEBUGLL(...)
+#endif
 
 typedef struct Node {
     char *ip; 
@@ -55,7 +60,7 @@ void init_linkedlist () {
     get_conf_value("./piheadlthd.conf", "prename", prename);
     for (int i = 50; i <= 55; i++) {
         sprintf(ip, "%s.%d", prename, i);
-        printf("%s\n", ip);
+        DEBUGLL("%s\n", ip);
         int min = min_queue();
         Node *p, ret;
         p = init_node(ip);
@@ -122,9 +127,7 @@ void output (LinkedList head, int num) {
     char logfile[PATH_N];
     sprintf(logfile, "./queue.log/%d.log", num);
     FILE *fp = fopen(logfile, "w");
-    //printf("output\n");
     while (p) {
-        printf("output %s\n", p->ip);
         fprintf(fp, "%s", p->ip);
         if (p->next) {
             fprintf(fp, "%s", " ");
@@ -179,7 +182,7 @@ int get_filename (int bit, char *ipLogName, char *filename) {
             sprintf(filename, "%s/proc.log", ipLogName);
         }break;
         default : {
-            printf("bit error!\n");
+            DEBUGLL("bit error!\n");
             break;
         }
     }
@@ -194,7 +197,7 @@ int write_message (char *filename, char *ip) {
 
     sockfd_data = connect_socket(port, ip);
     if (sockfd_data < 0) {
-        printf("IP %s data connect error\n", ip);
+        DEBUGLL("IP %s data connect error\n", ip);
         close(sockfd_data);
         //exit(1); //exit(0)正常退出,exit(1)错误退出
         return -1;
@@ -202,17 +205,15 @@ int write_message (char *filename, char *ip) {
     char *buffer = (char *)malloc(sizeof(char) * MAX_N);
     FILE *fp = fopen(filename, "a+");
     int a;
-    printf("%s\n", filename);
     while ((a = recv(sockfd_data, buffer, MAX_N, 0)) > 0) {
         fwrite(buffer, a, 1, fp);
-        //printf("%s", buffer);
         memset(buffer, 0, sizeof(buffer));
     }
     fclose(fp);
     if (a == 0) {
-        printf("IP%s closed\n", ip);
+        DEBUGLL("IP%s closed\n", ip);
     } else if (a < 0) {
-        perror("recv error\n");
+        //perror("recv error\n");
     }
     close(sockfd_data);
     return 0;
@@ -237,26 +238,26 @@ void *alt_func (void *argv) {
     int port = 7999;
     alter_listen = bind_socket(port);
     while (1) {
-        printf("alter_addr\n");
         socklen_t len = sizeof(alter_addr);
         if ((sockfd = accept(alter_listen, (struct sockaddr *)&alter_addr, &len)) < 0) {
-            perror("accept error!\n");
+            //perror("accept error!\n");
             break;
         }
+        DEBUGLL("alter_addr\n");
         int a;
         char *buffer = (char *)malloc(sizeof(char) * MAX_N);
         memset(buffer, 0, sizeof(buffer));
         FILE *fp = fopen("./log/warning.log", "a+");
         while ((a = recv(sockfd, buffer, MAX_N, 0)) > 0) {
             fwrite(buffer, a, 1, fp);
-            printf("%s", buffer);
+            //DEBUGLL("%s", buffer);
             memset(buffer, 0, sizeof(buffer));
         }
         fclose(fp);
         if (a == 0) {
-            printf("IP%s closed\n", inet_ntoa(alter_addr.sin_addr));
+            DEBUGLL("IP%s closed\n", inet_ntoa(alter_addr.sin_addr));
         } else if (a < 0) {
-            perror("recv error\n");
+            //perror("recv error\n");
         }
         close(sockfd);
     }
@@ -268,10 +269,7 @@ void *func (void *argv) {
     struct mypara *para;
     para = (struct mypara *) argv;
     time_t wait = 5;
-    //sleep(10);
     while (1) {
-        //sleep(5);
-        //printf("=====\n");
         if (!queue[para->num]) {
             sleep(wait);
             continue;
@@ -288,10 +286,9 @@ void *func (void *argv) {
         Node *p = linkedlist[para->num];
         Node *q = linkedlist[para->num];
         while (q) {
-            //sleep(5);
             sockfd = connect_socket(port, q->ip);
             if (sockfd < 0) {
-                printf("delete IP %s\n", q->ip);
+                DEBUGLL("delete IP %s\n", q->ip);
                 q = q->next;
                 p = delete_node(p, count);
                 queue[para->num]--;
@@ -299,14 +296,13 @@ void *func (void *argv) {
                 continue;
             }
             count++;
-            printf("connect IP %s\n", q->ip);
+            DEBUGLL("connect IP %s\n", q->ip);
             char *ip_log_path = ip_log_dir(q->ip); //该主机文件夹路径
             int bit = 100, req = 100, a;
             send(sockfd, &bit, 4, 0); //发送请求标识符
             while ((a = recv(sockfd, &req, 4, 0)) > 0) {
-                printf("%d\n", req);
                 if (req == 404) {
-                    printf("404 文件无法打开或不存在\n");
+                    DEBUGLL("404 文件无法打开或不存在\n");
                     if (bit == 105) break;
                     bit++;
                     send(sockfd, &bit, 4, 0);
@@ -323,8 +319,9 @@ void *func (void *argv) {
                 bit++;
                 send(sockfd, &bit, 4, 0);
             }
+            DEBUGLL("a = %d\n", a);
             close(sockfd);
-            printf("下一个节点\n");
+            DEBUGLL("下一个节点\n");
             q = q->next;
         }
         linkedlist[para->num] = p;
@@ -335,6 +332,12 @@ void *func (void *argv) {
 }
 
 int main () {
+    pid_t pid;
+    pid = fork();
+    if (pid == 1) return -1;
+    else if (pid != 0) {
+        exit(EXIT_SUCCESS);
+    }
     pthread_t t[INS + 1];
     pthread_t alt_t;
     struct mypara para[INS + 1];
@@ -343,7 +346,7 @@ int main () {
     
     //master端对于警告信息实时处理的线程
     if (pthread_create(&alt_t, NULL, alt_func, NULL)) {
-        perror("pthread_create error\n");
+        //perror("pthread_create error\n");
         exit(1);
     }
 
@@ -352,7 +355,7 @@ int main () {
         para[i].s = "Hello world!";
         para[i].num = i;
         if (pthread_create(&t[i], NULL, func, (void *)&para[i]) == -1) {
-            perror("pthread_create error\n");
+            //perror("pthread_create error\n");
             exit(1);
         }
     }
@@ -369,7 +372,7 @@ int main () {
         struct sockaddr_in dest_addr;
         socklen_t len = sizeof(dest_addr);
         if ((sockfd = accept(master_listen, (struct sockaddr *)&dest_addr, &len)) < 0 ) {
-            perror("accept error!\n");
+            //perror("accept error!\n");
             exit(0);
         }
         char *ip = inet_ntoa(dest_addr.sin_addr);
@@ -380,7 +383,7 @@ int main () {
         pthread_mutex_lock(&mutex[min]);
         ret = insert(linkedlist[min], p, queue[min]);
         output(linkedlist[min], min);
-        printf("insert %s\n", ip);
+        DEBUGLL("insert %s\n", ip);
         queue[min]++;
         linkedlist[min] = ret.next;
         pthread_mutex_unlock(&mutex[min]);
