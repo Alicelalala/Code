@@ -125,7 +125,7 @@ void clear (LinkedList head) {
 void output (LinkedList head, int num) {
     Node *p = head;
     char logfile[PATH_N];
-    sprintf(logfile, "./queue.log/%d.log", num);
+    sprintf(logfile, "./log/queue.log/%d.log", num);
     FILE *fp = fopen(logfile, "w");
     while (p) {
         fprintf(fp, "%s", p->ip);
@@ -299,7 +299,7 @@ void *func (void *argv) {
             DEBUGLL("connect IP %s\n", q->ip);
             char *ip_log_path = ip_log_dir(q->ip); //该主机文件夹路径
             int bit = 100, req = 100, a;
-            send(sockfd, &bit, 4, 0); //发送请求标识符
+            int sen = send(sockfd, &bit, 4, 0); //发送请求标识符
             while ((a = recv(sockfd, &req, 4, 0)) > 0) {
                 if (req == 404) {
                     DEBUGLL("404 文件无法打开或不存在\n");
@@ -334,7 +334,7 @@ void *func (void *argv) {
 int main () {
     pid_t pid;
     pid = fork();
-    if (pid == 1) return -1;
+    if (pid == -1) return -1;
     else if (pid != 0) {
         exit(EXIT_SUCCESS);
     }
@@ -376,7 +376,10 @@ int main () {
             exit(0);
         }
         char *ip = inet_ntoa(dest_addr.sin_addr);
-        if (check_weight(ip)) continue; //查重
+        if (check_weight(ip)) { //查重
+            close(sockfd);
+            continue; 
+        }
         Node *p = init_node(ip);
         Node ret;
         int min = min_queue();

@@ -24,7 +24,7 @@ void *send_func () {
         if (sockfd < 0) {
             printf("sockfd < 0\n");
             close(sockfd);
-            continue;
+            break;
         }
         char buffer[MAX_N];
         int a;
@@ -35,6 +35,9 @@ void *send_func () {
                     getchar();
                     break;
                 }
+                getchar();
+                strcat(buffer, "\n");
+                send(sockfd, buffer, strlen(buffer), 0);
                 close(sockfd);
                 return NULL;
             }

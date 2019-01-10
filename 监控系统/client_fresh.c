@@ -12,6 +12,12 @@
 #define MAX_P 10
 #define MAX_N 1024
 
+#ifdef DEBUG
+#define DEBUGLL(...) printf(__VA_ARGS__)
+#else
+#define DEBUGLL(...)
+#endif
+
 static pthread_mutex_t mutex[INS + 1];
 static pthread_mutex_t alt_mut;
 
@@ -56,7 +62,7 @@ int get_filename (int bit, char *filename, const char *tail) {
             stime = 30;
         } break;
         default : {
-            printf("bit error\n");
+            DEBUGLL("bit error\n");
             return -1;
         }
     }
@@ -85,14 +91,14 @@ void *alt_func (void *argv) {
         fclose(fr);
         sockfd = connect_socket(port, host);
         if (sockfd < 0) {
-            printf("connect!!\n");
+            DEBUGLL("connect!!\n");
             close(sockfd);
             exit(0);
         }
         FILE *fd = fopen(filename, "r");
         while (!feof(fd)) {
             fread(buffer, 4, 1, fd);
-            printf("%s", buffer);
+            DEBUGLL("%s", buffer);
             send(sockfd, buffer, strlen(buffer), 0);
             memset(buffer, 0, sizeof(buffer));
         }
@@ -131,12 +137,7 @@ void *heart_func (void *argv) {
     int sockfd;
     while (1) {
         sockfd = connect_socket(addr->num, addr->s);
-        if (sockfd < 0) {
-            //perror("connect error");
-            break;
-            //close(sockfd);
-            //exit(0);
-        }
+        DEBUGLL("%s\n", addr->s);
         close(sockfd);
         sleep(20);
     }
@@ -151,7 +152,7 @@ int main(int argc, char *argv[]) {
     struct mypara heart_para;
     init_pthread();
     if (pthread_create(&alt_t, NULL, alt_func, NULL) == -1) {
-        printf("error\n");
+        DEBUGLL("error\n");
         exit(1);
     }
     int port = atoi(argv[2]);
@@ -159,7 +160,7 @@ int main(int argc, char *argv[]) {
     heart_para.s = host;
     heart_para.num = port;
     if (pthread_create(&heart_t, NULL, heart_func, (void *)&heart_para) == -1) {
-        printf("error\n");
+        DEBUGLL("error\n");
         exit(1);
     }
     int sockfd, sock_listen;
@@ -176,7 +177,7 @@ int main(int argc, char *argv[]) {
         para[i].s = initstr;
         para[i].num = i;
         if (pthread_create(&t[i], NULL, func, (void *)&para[i]) == -1) {
-            printf("error\n");
+            DEBUGLL("error\n");
             exit(1);
         }
     }
@@ -202,12 +203,13 @@ int main(int argc, char *argv[]) {
         }
         char *filename = (char *)malloc(sizeof(char) * PATH_N);
         int a, bit, req;
+        //printf("%d\n", sock_listen);
         while ((a = recv(sockfd, &bit, 4, 0)) > 0) {
             get_filename(bit, filename, ".log");
             pthread_mutex_lock(&mutex[bit - 100]);
             FILE *fp = fopen(filename, "r");
             if (fp == NULL) {
-                printf("%s can not read\n", filename);
+                DEBUGLL("%s can not read\n", filename);
                 pthread_mutex_unlock(&mutex[bit - 100]);
                 bit = 404;
                 send(sockfd, &bit, 4, 0);
@@ -215,10 +217,15 @@ int main(int argc, char *argv[]) {
             }
             fclose(fp);
             fp = NULL;
-            send(sockfd, &bit, 4, 0);
-            printf("send %d open %s\n", bit, filename);
-            if ((sockfd_data = accept(sock_data_listen, (struct sockaddr *)&master_addr, &len)) < 0) {
+            int sen = send(sockfd, &bit, 4, 0);
+            if (sen < 0) {
+                pthread_mutex_unlock(&mutex[bit - 100]);
+                break;
+            }
+            DEBUGLL("send %d open %s\n", bit, filename);
+            if ((sockfd_data = accept(sock_data_listen, (struct sockaddr *)&master_addr, &len)) <= 0) {
                 perror("accept() error!\n");
+                pthread_mutex_unlock(&mutex[bit - 100]);
                 break;
             }
             char *buffer = (char *)malloc(sizeof(char) * MAX_N);
@@ -227,11 +234,10 @@ int main(int argc, char *argv[]) {
             FILE *fr = popen(command, "r");
             while (!feof(fr)) {
                 fread(buffer, 4, 1, fr);
-                //printf("%s", buffer);
                 int len = send(sockfd_data, buffer, strlen(buffer), 0);
                 if (len == -1) {
                     perror("send error\n");
-                    exit(1);
+                    break;
                 }
                 memset(buffer, 0, sizeof(buffer));
             }
@@ -248,6 +254,7 @@ int main(int argc, char *argv[]) {
     }
     close(sock_data_listen);
     close(sock_listen);
+    pthread_join(heart_t, NULL);
     pthread_join(alt_t, NULL);
     pthread_join(t[0], NULL);
     pthread_join(t[1], NULL);
