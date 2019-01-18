@@ -55,7 +55,7 @@ void erase(LinkList *l, int ind) {
     }
     if (p->next == NULL) return ;
     LinkNode *q = p->next;
-    p->next = p->next->next;
+    p->next = q->next;
     free(q);
     l->length -= 1;
     return ;

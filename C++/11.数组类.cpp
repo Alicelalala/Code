@@ -26,6 +26,7 @@ class Arry {
         return arr[index];
     }
     void alter(int index, int value) {
+        if (index < 0 || index >= len) return ;
         arr[index] = value;
     }
 };

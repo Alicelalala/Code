@@ -7,8 +7,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <iostream>
-using namespace std;
+#include <time.h>
 
 typedef struct Queue {
     int *data;
@@ -71,6 +70,7 @@ void output (Queue *q) {
 
 int main() {
     srand(time(0));
+    #define MAX_OP 20
     Queue *q = init(MAX_OP);
 
     return 0;
